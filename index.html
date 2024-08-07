@@ -39,15 +39,20 @@
       const errorsListRef = document.getElementById('errors');
       const errors = [];
 
-      document.getElementById('reset').addEventListener('click', function () {
-        document.getElementById('csvFileInput').value = '';
+      function handleReset() {
         errors.length = 0;
         errorsListRef.innerHTML = '';
         document.getElementById('errorsBlock').style.display = 'none';
         document.getElementById('downloadButton').style.display = 'none';
+      }
+
+      document.getElementById('reset').addEventListener('click', function () {
+        document.getElementById('csvFileInput').value = '';
+        handleReset();
       });
 
       document.getElementById('csvFileInput').addEventListener('change', function (event) {
+        handleReset();
         const file = event.target.files[0];
         if (file) {
           const reader = new FileReader();
@@ -75,7 +80,7 @@
             // downloadButton.addEventListener('click', function () {
             //   downloadCSV(csvString, fileName);
             // });
-            downloadCSV(csvString, fileName + '-M.csv');
+            downloadCSV(csvString, fileName + '-Mod.csv');
           };
           reader.readAsText(file);
         }
