@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HC Mapping CSV</title>
+  </head>
+  <body>
+    <h1>Upload CSV and Download</h1>
+
+    <!-- File Upload Input -->
+    <input type="file" id="csvFileInput" accept=".csv" />
+    <br /><br />
+
+    <!-- Display errors -->
+    <h3>Errors:</h3>
+    <ul id="errors"></ul>
+
+    <!-- Button to trigger download -->
+    <button id="downloadButton" style="display: none">Download Modified CSV</button>
+
+    <script>
+      const errorsListRef = document.getElementById('errors');
+      const errors = [];
+
+      document.getElementById('csvFileInput').addEventListener('change', function (event) {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const csvContent = e.target.result;
+            // Get the file name without the extension
+            let fileName = file.name;
+            fileName = fileName.substr(0, fileName.lastIndexOf('.'));
+            // Parse the CSV content
+            const parsedCsv = parseCSV(csvContent);
+
+            // Modify the content using the abstract function
+            const modifiedCsv = modifyCSV(parsedCsv);
+
+            // Convert the modified CSV back to string format
+            const csvString = convertArrayToCSV(modifiedCsv);
+
+            // Show the download button
+            // const downloadButton = document.getElementById('downloadButton');
+            // downloadButton.style.display = 'block';
+
+            // // Trigger the download when button is clicked
+            // downloadButton.addEventListener('click', function () {
+            //   downloadCSV(csvString, fileName);
+            // });
+            downloadCSV(csvString, fileName + '-M.csv');
+          };
+          reader.readAsText(file);
+        }
+      });
+
+      // Function to parse CSV content into an array
+      function parseCSV(csvContent) {
+        const rows = csvContent.split('\n');
+
+        // Remove the header row
+        rows.shift();
+
+        // Remove \r from each row
+        rows.forEach((row, index) => {
+          rows[index] = row.replace('\r', '');
+        });
+
+        // Split each row by comma, however avoid splitting commas inside quotes (",")
+        const parsedCSV = rows.map((row) => {
+          const rowArray = [];
+          let insideQuote = false;
+          let cell = '';
+          for (let i = 0; i < row.length; i++) {
+            const char = row[i];
+            if (char === '"') {
+              insideQuote = !insideQuote;
+            } else if (char === ',' && !insideQuote) {
+              rowArray.push(cell);
+              cell = '';
+            } else {
+              cell += char;
+            }
+          }
+          rowArray.push(cell);
+          return rowArray;
+        });
+
+        const contentLength = parsedCSV[0].length;
+
+        // Check if each row has the same number of columns
+        parsedCSV.forEach((row, index) => {
+          if (row.length !== contentLength) {
+            errors.push(`Row ${index + 1} has ${row.length} columns, expected ${contentLength}`);
+            errors.push(`Row ${index + 1}: ${row.join(',')}`);
+
+            // Remove the row with error
+            parsedCSV.splice(index, 1);
+          }
+        });
+
+        displayErrors();
+        return parsedCSV;
+      }
+
+      function displayErrors() {
+        errorsListRef.innerHTML = errors.map((error) => `<li>${error}</li>`).join('');
+      }
+      // Abstract function to modify CSV content
+      function modifyCSV(csvArray) {
+        return csvArray.map((row) => {
+          const fullName = row[0].trim();
+          const firstName = fullName.split(' ')[0];
+          const lastName = fullName.substr(firstName.length).trim();
+          const bsb = convertBSB(row[2]);
+          const accountNumber = convertAccountNumber(row[3]);
+          const amount = convertAmount(row[4]);
+          const reference = row[5];
+
+          return [
+            '',
+            'AUD',
+            amount,
+            '',
+            'AUD',
+            amount,
+            'au_bank_acct',
+            '',
+            '',
+            '',
+            '',
+            'SELF',
+            '',
+            reference,
+            '',
+            '',
+            '',
+            bsb,
+            accountNumber,
+            '',
+            firstName,
+            lastName,
+          ];
+        });
+      }
+
+      function convertAmount(amount) {
+        // Example input: 1234.56, $1234.56, 1234.56$, $1,234.56, $2,000
+        // Expected output: 1234.56
+        let newAmount = amount.replace(/[$, ]/g, '');
+        return newAmount;
+      }
+
+      function convertAccountNumber(accNum) {
+        // Example input: 123456789
+        // Expected output: 123456789
+        let newAccNum = accNum.replace(/-|\s/g, '');
+
+        // Check if length is from 6 to 10
+        if (newAccNum.length < 6 || newAccNum.length > 10) {
+          errors.push(`Invalid Account Number: ${accNum}`);
+          return '';
+        }
+        return newAccNum;
+      }
+
+      function convertBSB(bsb) {
+        // Example input: 123-456, 12345, 123 321, 234 4343
+        // Expected output: 123456
+
+        let newBSB = bsb.replace(/[- ]/g, '');
+        if (newBSB.length === 5) {
+          newBSB = '0' + newBSB;
+        }
+        if (newBSB.length !== 6) {
+          errors.push(`Invalid BSB: ${bsb}`);
+          return '';
+        }
+        return newBSB;
+      }
+
+      // Function to convert an array back to CSV format
+      function convertArrayToCSV(array) {
+        const csv = array.map((row) => row.join(',')).join('\n');
+        const header =
+          'sender_country,sender_currency*,sender_amount*,beneficiary_country,beneficiary_currency*,beneficiary_amount*,payout_method_name*,debit_wallet_id,fees_wallet_id,organization_reference_id,description,purpose_code*,receipt_email,payout_reference,webhook_url,payout_sender_id,payout_beneficiary_id,payout_beneficiary_param.bsb,payout_beneficiary_param.account_number,payout_beneficiary_param.company.name,payout_beneficiary_param.individual.first_name,payout_beneficiary_param.individual.last_name';
+        return header + '\n' + csv;
+      }
+
+      // Function to trigger CSV file download
+      function downloadCSV(csvContent, filename) {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          link.setAttribute('download', filename);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      }
+    </script>
+  </body>
+</html>
