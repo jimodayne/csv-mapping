@@ -36,6 +36,7 @@
     </div>
 
     <script>
+      const CONTENT_ROW_LENGTH = 6;
       const errorsListRef = document.getElementById('errors');
       const errors = [];
 
@@ -133,12 +134,10 @@
           return rowArray;
         });
 
-        const contentLength = parsedCSV[0].length;
-
         // Check if each row has the same number of columns
         parsedCSV.forEach((row, index) => {
-          if (row.length !== contentLength) {
-            errors.push(`Row ${index + 1} has ${row.length} columns, expected ${contentLength}`);
+          if (row.length < CONTENT_ROW_LENGTH) {
+            errors.push(`Row ${index + 1} has ${row.length} columns, expected ${CONTENT_ROW_LENGTH}`);
             errors.push(`Row ${index + 1}: ${row.join(',')}`);
 
             // Remove the row with error
