@@ -19,7 +19,7 @@
       <h1>Upload CSV and Download</h1>
       <!-- File Upload Input -->
       <div>
-        <input type="file" id="csvFileInput" accept=".csv" />
+        <input multiple type="file" id="csvFilesInput" accept=".csv" />
       </div>
       <button id="reset">Reset</button>
 
@@ -27,7 +27,7 @@
 
       <!-- Display errors -->
       <div id="errorsBlock">
-        <h3 style="display: none">Errors:</h3>
+        <h3 style="display: none">LOGS:</h3>
         <ul id="errors"></ul>
       </div>
 
@@ -48,19 +48,30 @@
       }
 
       document.getElementById('reset').addEventListener('click', function () {
-        document.getElementById('csvFileInput').value = '';
+        document.getElementById('csvFilesInput').value = '';
         handleReset();
       });
 
-      document.getElementById('csvFileInput').addEventListener('change', function (event) {
+      document.getElementById('csvFilesInput').addEventListener('change', function (event) {
         handleReset();
-        const file = event.target.files[0];
+
+        // Process each file in the input
+        Array.prototype.forEach.call(event.target.files, function (file) {
+          processFile(file);
+        });
+      });
+
+      const processFile = (file) => {
+        console.log(file);
         if (file) {
           const reader = new FileReader();
           reader.onload = function (e) {
             const csvContent = e.target.result;
             // Get the file name without the extension
             let fileName = file.name;
+            // Add filename to LOGS
+            errors.push('<strong style="display: block;margin-top: 24px"> Processing file: ' + fileName + '</strong>');
+
             fileName = fileName.substr(0, fileName.lastIndexOf('.'));
             // Parse the CSV content
             const parsedCsv = parseCSV(csvContent);
@@ -73,19 +84,14 @@
 
             displayErrors();
 
-            // Show the download button
-            // const downloadButton = document.getElementById('downloadButton');
-            // downloadButton.style.display = 'block';
+            errors.push('Completed');
 
-            // // Trigger the download when button is clicked
-            // downloadButton.addEventListener('click', function () {
-            //   downloadCSV(csvString, fileName);
-            // });
+            // Auto download the modified CSV
             downloadCSV(csvString, fileName + '-Mod.csv');
           };
           reader.readAsText(file);
         }
-      });
+      };
 
       function isStringAllNumbers(str) {
         return /^\d+$/.test(str);
@@ -98,7 +104,7 @@
       function addErrors(error, row) {
         errors.push(`Row: ${row.join(', ')}`);
         errors.push(`Error: ${error}`);
-        errors.push('-'.repeat(50));
+        errors.push('-'.repeat(20));
       }
 
       // Function to parse CSV content into an array
@@ -159,41 +165,48 @@
       }
       // Abstract function to modify CSV content
       function modifyCSV(csvArray) {
-        return csvArray.map((row, index) => {
-          const fullName = row[0].trim();
-          const firstName = fullName.split(' ')[0];
-          const lastName = fullName.substr(firstName.length).trim();
-          const bsb = convertBSB(row[2], index, row);
-          const accountNumber = convertAccountNumber(row[3], index, row);
-          const amount = convertAmount(row[4], index, row);
-          const reference = row[5];
+        return csvArray
+          .map((row, index) => {
+            const fullName = row[0].trim();
+            const firstName = fullName.split(' ')[0];
+            const lastName = fullName.substr(firstName.length).trim();
+            const bsb = convertBSB(row[2], index, row);
+            const accountNumber = convertAccountNumber(row[3], index, row);
+            const amount = convertAmount(row[4], index, row);
+            const reference = row[5];
 
-          return [
-            '',
-            'AUD',
-            amount,
-            '',
-            'AUD',
-            amount,
-            'au_bank_acct',
-            '',
-            '',
-            '',
-            '',
-            'SELF',
-            '',
-            reference,
-            '',
-            '',
-            '',
-            bsb,
-            accountNumber,
-            '',
-            firstName,
-            lastName,
-          ];
-        });
+            return [
+              '',
+              'AUD',
+              amount,
+              '',
+              'AUD',
+              amount,
+              'au_bank_acct',
+              '',
+              '',
+              '',
+              '',
+              'SELF',
+              '',
+              reference,
+              '',
+              '',
+              '',
+              bsb,
+              accountNumber,
+              '',
+              firstName,
+              lastName,
+            ];
+          })
+          .filter(filterRow);
       }
+
+      const filterRow = (row) => {
+        // Filter out rows with empty amount
+        return !!row[2];
+      };
 
       function convertAmount(amount, index, row) {
         // Example input: 1234.56, $1234.56, 1234.56$, $1,234.56, $2,000
