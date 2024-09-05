@@ -84,10 +84,10 @@
 
             displayErrors();
 
-            errors.push('Completed');
-
             // Auto download the modified CSV
             downloadCSV(csvString, fileName + '-Mod.csv');
+
+            errors.push('Completed');
           };
           reader.readAsText(file);
         }
